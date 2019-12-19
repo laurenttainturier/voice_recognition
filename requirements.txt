@@ -1,7 +1,9 @@
+scikit-learn
 SoundFile
 pandas
 numpy
 scipy
 matplotlib
 librosa
+tkinter
 python_speech_features
