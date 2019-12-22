@@ -87,16 +87,21 @@ def display_audio_extract(audio_name: str = 'aaoao.flac'):
 def add_proportion(
         ax1: plt.Subplot, ax2: plt.Subplot, series: pd.Series, name: str
 ) -> list:
-    values = series.values
-    labels = series.keys()
+
+    for key in series.keys():
+        if series[key] < .05 * sum(series):
+            if 'other' not in series.keys():
+                series['other'] = 0
+
+            series['other'] += series.pop(key)
 
     wedges, _, autotexts = ax2.pie(
-        values, autopct='%1.1f%%', startangle=90,
+        series.values, autopct='%1.1f%%', startangle=90,
         colors=COLORS, counterclock=False
     )
 
     ax1.legend(
-        wedges, labels,
+        wedges, series.keys(),
         title=name,
         loc="center"
     )
@@ -129,5 +134,6 @@ def display_proportions(data: pd.DataFrame, properties: list):
         fig.add_subplot(ax1)
         fig.add_subplot(ax2)
 
-    fig.show()
+    plt.savefig("picture/proportions.png")
+    plt.close(fig)
 

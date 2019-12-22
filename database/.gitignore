@@ -1,0 +1,5 @@
+# the content of this directory must not be tracked
+*
+
+# the only tracked file is the .gitignore
+!.gitignore

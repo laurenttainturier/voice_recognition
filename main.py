@@ -1,68 +1,65 @@
 #!/usr/bin/env python3
 # coding: utf8
 
-import matplotlib.pyplot as plt
-
 from segment import *
 from extract import *
 from classify import *
 
+from visualize import display_proportions
 
-dev_dataset = extract_dataset(create_dataframe('dev/keys/meta.lst'))
-eval_dataset = extract_dataset(create_dataframe('eval/keys/meta.lst'))
+
+# extraction method
+MFCC = ("MFCC", extract_with_mfcc)
+LPC = ("LPC", extract_with_lpc)
+PLP = ("PLP", extract_with_plp)
+
+# classification method
+GMM = ("GMM", GMMClassifier())
+SVM = ("SVM", SVMClassifier())
+
+EXTRACTOR = (MFCC, LPC, PLP)
+CLASSIFIER = (GMM, SVM)
 
 
 if __name__ == "__main__":
+    extractor_name, extractor = MFCC
+    classifier_name, classifier = GMM
 
-    original_dataset = create_dataframe('dev/keys/meta.lst')
+    print(
+        f"Classification with {classifier_name} "
+        f"using extractor {extractor_name}"
+    )
 
-    dataset = extract_dataset(original_dataset)
+    print("-> segmentation starts")
+    original_dataset = create_dataframe('database/dev/keys/meta.lst')
+
+    cls_dataset = extract_dataset(original_dataset)
     ubm_dataset = extract_background_dataset(original_dataset)
 
-    ubm_train_dataset, ubm_test_dataset = split_dataset(ubm_dataset, 30)
-    ubm_train_features = extract_features(ubm_train_dataset, extract_mfcc)
-    ubm_test_features = extract_features(ubm_test_dataset, extract_mfcc)
+    display_proportions(
+        pd.concat([cls_dataset, ubm_dataset]),
+        [GENDER, MICRO, DEGRADATION, SPEAKER_NUMBER]
+    )
 
-    gmm_ubm = train_gmm(ubm_train_features)
+    cls_train_dataset, cls_test_dataset = split_dataset(cls_dataset, 30)
 
-    for i, speaker in enumerate(sorted(dataset[SPEAKER_ID].unique())):
-        spk_dataset = dataset.loc[dataset[SPEAKER_ID] == speaker]
-        spk_train, spk_test = split_dataset(spk_dataset, 30)
-        spk_train_features = extract_features(spk_train, extract_mfcc)
-        spk_test_features = extract_features(
-            spk_test, extract_mfcc, train=False
-        )
+    print("-> feature extraction starts")
+    cls_train_features, cls_train_labels = extract_features(
+        cls_train_dataset, extractor, multi=False
+    )
+    cls_test_features, cls_test_labels = extract_features(
+        cls_test_dataset, extractor, multi=False
+    )
 
-        gmm_spk = train_gmm(spk_train_features)
+    ubm_features, _ = extract_features(
+        ubm_dataset, extractor, multi=False
+    )
 
-        spk = []
-        ubm = []
+    print("-> training starts")
+    classifier.train(cls_train_features, cls_train_labels)
 
-        for test in spk_test_features:
-            spk.append(gmm_spk.score(test))
-            ubm.append(gmm_ubm.score(test))
+    print("-> training background")
+    classifier.train_background(ubm_features)
 
-        diff = np.array(spk) - np.array(ubm)
-
-        fig = plt.figure(i)
-        plt.hist(diff, alpha=0.5, label='genuine')
-        plt.legend()
-
-        oth_dataset = dataset.loc[dataset[SPEAKER_ID] != speaker]
-        oth_test = extract_features(
-            oth_dataset, extract_mfcc, train=False
-        )
-
-        spk = []
-        ubm = []
-
-        for test in oth_test:
-            spk.append(gmm_spk.score(test))
-            ubm.append(gmm_ubm.score(test))
-
-        diff = np.array(spk) - np.array(ubm)
-
-        plt.hist(diff, alpha=0.5, label='impostor')
-        plt.legend()
-        plt.savefig(f'picture/{i}_similarity.png')
-        plt.close(fig)
+    print("-> classifying starts")
+    classifier.classify(cls_test_features, cls_test_labels)

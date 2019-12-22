@@ -5,5 +5,5 @@ numpy
 scipy
 matplotlib
 librosa
-tkinter
+scikit-learn
 python_speech_features

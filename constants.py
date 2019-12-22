@@ -13,8 +13,16 @@ SPEAKER_NUMBER = 'speaker_number'
 LABELS = 'labels'
 DEGRADATION = 'degradation'
 
-AUDIO_DIR = 'dev/'
+AUDIO_DIR = 'database/dev/'
 
 PROPORTION_COLUMNS = [GENDER, MICRO, DEGRADATION, SPEAKER_NUMBER]
 
-COLORS = ["#4384DB", "#E14744", "#BDE267", "#895FBD", "#52C1E8"]
+COLORS = [
+    "#4384DB",
+    "#E14744",
+    "#BDE267",
+    "#895FBD",
+    "#52C1E8",
+    "#E67E22",
+    "#2C3E50"
+]

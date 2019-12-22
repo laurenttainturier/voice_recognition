@@ -6,70 +6,95 @@ import pandas as pd
 import soundfile as sf
 from sklearn import preprocessing
 import python_speech_features as spefeat
-import librosa.feature as libfeat
+import librosa.core as libcore
 
-from constants import AUDIO_DIR
-
-
-def extract_mfcc(audio: np.array, samplerate: int):
-    feature = spefeat.mfcc(audio, samplerate)
-
-    return preprocessing.scale(feature)
+from tools import *
+from constants import AUDIO_DIR, AUDIO, SPEAKER_ID
+from segment import segment_audio, split_in_windows
 
 
-def split_audio(
-        audio: list, samplerate: int, th_duration: int = 10) \
-        -> np.array:
+def extract_with_mfcc(audio: np.array, samplerate: int):
     """
-    Splits an audio in several extracts with a duration the nearest
-    as possible to 'duration'
+    Extracts audio characteristics using LPC
 
-    :param audio: array representing the audio
-    :param samplerate: number of values per seconds for audio
-    :param th_duration: theoretical duration
-    :return: array containing the splitted audio
+    :param audio: (np.array) audio to be extracted
+    :param samplerate: (int) corresponding to the samplerate of audio
+    :return: characteristics of the signal
     """
 
-    total_duration = len(audio) / samplerate
-    extract_number = int(total_duration / th_duration + .5)
-    extract_len = len(audio) // extract_number
-    maxi = extract_len * (extract_number - 1)
+    features = spefeat.mfcc(audio, samplerate)
 
-    return [
-        audio[t:t + extract_len]
-        for t in range(0, maxi, extract_len)
-    ] + [audio[maxi:]]
+    return preprocessing.scale(features)
 
 
+def extract_with_lpc(audio: np.array, samplerate: int):
+    """
+    Extracts audio characteristics using LPC
+
+    :param audio: (np.array) audio to be extracted
+    :param samplerate: (int) corresponding to the samplerate of audio
+    :return: characteristics of the signal
+    """
+
+    windows = split_in_windows(audio, samplerate)
+
+    # for each window, get the coefficients of the LPC
+    features = np.array([
+        libcore.lpc(window, 12) for window in windows
+    ])
+
+    return preprocessing.scale(features)
+
+
+def extract_with_plp(audio: np.array, _: int):
+    """
+    Extracts audio characteristics using PLP
+
+    :param audio: (np.array) audio to be extracted
+    :param _: (int) corresponding to the samplerate of audio
+    :return: characteristics of the signal
+    """
+
+    pass
+
+
+@get_function_duration
+@get_function_memory_consumption
 def extract_features(
-        data: pd.DataFrame, extract, train: bool = True,
-        audio_dir: str = AUDIO_DIR) -> list:
+        data: pd.DataFrame, extract, multi: bool = True,
+        audio_dir: str = AUDIO_DIR) -> (list, list):
     """
+    Generic function to perform feature extraction,
+    independently of the extraction method
 
-    :param data:
-    :param extract:
-    :param train:
-    :param audio_dir:
-    :return:
+    :param data: (pd.DataFrame) contains the detail of each sample
+    :param extract: (Function) extraction method to use
+    :param multi: (bool) specify if several samples can be extract
+        from one audio file
+    :param audio_dir: (str) directory where the audio files are located
+    :return: (features:list, labels:list)
     """
-    listed_features = []
+    features = []
+    speakers = []
+
     for index, row in data.iterrows():
-        audio_name = row.loc["audio"]
+        audio_name = row.loc[AUDIO]
+        speaker = row.loc[SPEAKER_ID]
         audio, samplerate = sf.read(audio_dir + audio_name)
-        audio_extracts = split_audio(audio, samplerate)
+        audio_extracts = segment_audio(audio, samplerate)
 
-        if train:
+        if not multi:
             audio_extracts = audio_extracts[0:1]
 
         for audio_extract in audio_extracts:
             # extract the features using the given extraction function
-            listed_features.append(extract(audio_extract, samplerate))
+            features.append(extract(audio_extract, samplerate))
+            speakers.append(speaker)
 
-    return listed_features
+    return features, speakers
 
 
 if __name__ == '__main__':
-    audio, sp = sf.read("dev/audio/aahtm.flac")
-    sp_audio = split_audio(audio, sp)
-    for i in sp_audio:
-        print(len(i))
+    audio, sp = sf.read("database/dev/audio/aahtm.flac")
+    sp_audio = segment_audio(audio, sp)
+    lpc = extract_with_lpc(audio, sp)
