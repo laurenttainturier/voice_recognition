@@ -4,7 +4,7 @@ This project aims to evaluate different methods of extraction and classification
 
 # Installation
 
-## The Sepaker In the Wild database
+## The Speaker In the Wild database
 
 To use this project, you must have a copy of the database *Speaker in the Wild*. You can follow the instructions at this [link](http://www.speech.sri.com/projects/sitw/). Unzip the database in the folder `database`, located at the root of the project.
 
